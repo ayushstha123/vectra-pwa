@@ -99,23 +99,30 @@ function ObjDetection() {
 
       // Draw mesh
       const ctx = canvasRef.current.getContext("2d");
-      drawRect(obj, ctx); 
+      drawRect(obj, ctx);
     }
   };
 
-  useEffect(()=>{runCoco()},[]);
   useEffect(() => {
+    runCoco()
+  }, []);
+  useEffect(() => {
+    const message = "Object Detection page";
+    const utterance = new SpeechSynthesisUtterance(message);
+    window.speechSynthesis.speak(utterance);
+
+    // Cleanup function to cancel speech synthesis on unmount
     return () => {
       window.speechSynthesis.cancel();
     };
-  }, [])
+  }, []);
 
   return (
-    <div  className="App h-full">
+    <div className="App h-full">
       <header className="App-header relative h-full ">
         <Webcam
           ref={webcamRef}
-          muted={true} 
+          muted={true}
           style={{
             position: "absolute",
             marginLeft: "auto",
