@@ -16,10 +16,10 @@ export const SpeechToText = () => {
     }
 
     if (listening) {
-      // Stop listening and send the transcription to Gemini API
+      // Stop listening and send the transcription to Mistral API
       SpeechRecognition.stopListening();
       clearTimeout(listeningTimeoutRef.current); // Clear the timeout if already set
-      await handleGeminiAPI(transcript);
+      await handleMistralAPI(transcript);
     } else {
       // Interrupt any ongoing speech
       if (speechSynthesisRef.current) {
@@ -29,23 +29,32 @@ export const SpeechToText = () => {
       await SpeechRecognition.startListening({ continuous: true });
       listeningTimeoutRef.current = setTimeout(() => {
         SpeechRecognition.stopListening();
-        handleGeminiAPI(transcript);
+        handleMistralAPI(transcript);
       }, 10000); // 10 seconds
     }
   }, [listening, transcript]);
 
-  const handleGeminiAPI = async (command) => {
+  const handleMistralAPI = async (command) => {
     setGeneratingAnswer(true);
     setAnswer('Loading your answer... \n It might take up to 10 seconds');
     try {
       const response = await axios.post(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDrLW5Q9ulAs4gX3xlmBLFIZLL3Pr8NVl0`,
+        'https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.1/v1/chat/completions',
         {
-          contents: [{ parts: [{ text: command }] }],
+          model: "mistralai/Mistral-7B-Instruct-v0.1",
+          messages: [{ role: "user", content: command }],
+          max_tokens: 500,
+          stream: false
+        },
+        {
+          headers: {
+            Authorization: `Bearer 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`,  // Replace with your actual Hugging Face token
+            'Content-Type': 'application/json'
+          }
         }
       );
 
-      const generatedText = response.data.candidates[0]?.content?.parts[0]?.text || 'No text generated';
+      const generatedText = response.data.choices[0]?.message?.content || 'No text generated';
       const cleanedText = generatedText.replace(/\*/g, ''); // Remove asterisks
       setAnswer(cleanedText);
 
@@ -79,19 +88,8 @@ export const SpeechToText = () => {
     };
   }, []);
 
-  useEffect(() => {
-    const message = "Assistant Chatbot page";
-    const utterance = new SpeechSynthesisUtterance(message);
-    window.speechSynthesis.speak(utterance);
-
-    // Cleanup function to cancel speech synthesis on unmount
-    return () => {
-      window.speechSynthesis.cancel();
-    };
-  }, []);
-
   return (
-    <div className="bg-gradient-to-r  from-blue-50 to-blue-100  p-3 flex flex-col justify-center items-center">
+    <div className="bg-gradient-to-r from-blue-50 to-blue-100 h-full p-3 flex flex-col justify-center items-center">
       <button
         onClick={handleVoiceCommand}
         className={`bg-blue-500 text-white p-24 px-32 rounded-md hover:bg-blue-600 transition-all duration-300 ${generatingAnswer ? 'opacity-50 cursor-not-allowed' : ''
@@ -100,7 +98,10 @@ export const SpeechToText = () => {
       >
         {listening ? 'Stop Listening' : 'Start Listening'}
       </button>
-
+      {/* <div className="w-full md:w-2/3 lg:w-1/2 xl:w-1/3 text-center rounded-lg bg-white my-4 shadow-lg transition-all duration-500 transform hover:scale-105">
+        <p className="p-4">Transcript: {transcript}</p>
+        <p className="p-4">Response: {answer}</p>
+      </div> */}
     </div>
   );
 };
