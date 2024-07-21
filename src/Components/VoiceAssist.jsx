@@ -18,11 +18,11 @@ const VoiceAssist = () => {
         callback: (page) => {
           // Define your pages and their routes
           const routes = {
-            'home': '/',
+            'object detection': '/',
             'object detection': '/objectdetection',
             'image caption': '/imgCaption',
             'location': '/location',
-            'chatbot': "/speechtotext"
+            'chat': "/speechtotext"
           };
           if (routes[page.toLowerCase()]) {
             navigate(routes[page.toLowerCase()]);
