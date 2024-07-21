@@ -4,16 +4,17 @@ import * as cocossd from "@tensorflow-models/coco-ssd";
 import Webcam from "react-webcam";
 import "../App.css";
 
-let currentUtterance = null;
-let utteranceTimeout = null;
-
-const drawRect = (detections, ctx, setCurrentData) => {
+const drawRect = (detections, ctx) => {
+  // Get canvas width
   const canvasWidth = ctx.canvas.width;
 
+  // Loop through each prediction
   detections.forEach(prediction => {
+    // Extract boxes and classes
     const [x, y, width, height] = prediction['bbox'];
     const text = prediction['class'];
 
+    // Determine object position
     const objectCenterX = x + width / 2;
     let position;
     if (objectCenterX < canvasWidth / 3) {
@@ -34,33 +35,22 @@ const drawRect = (detections, ctx, setCurrentData) => {
       distance = "close";
     }
 
+    // Set styling
     const color = "0000FF";
     ctx.strokeStyle = '#' + color;
     ctx.font = '20px Arial';
 
+    // Draw rectangles and text
     ctx.beginPath();
     ctx.fillStyle = '#' + color;
-    ctx.fillText(`${text} [position: ${position}] [distance: ${distance}]`, x, y > 10 ? y - 5 : y + 15);
+    ctx.fillText(`${text} [position: ${position}] [distance: ${distance}]`, x, y > 10 ? y - 5 : y + 15); // Adjust text position
     ctx.rect(x, y, width, height);
     ctx.stroke();
 
-    setCurrentData({ text, position, distance });
-
-    if (currentUtterance) {
-      window.speechSynthesis.cancel();
-      clearTimeout(utteranceTimeout);
-    }
-
-    const message = `${text} detected at ${position} and it is ${distance}`;
-    currentUtterance = new SpeechSynthesisUtterance(message);
-    window.speechSynthesis.speak(currentUtterance);
-
-    utteranceTimeout = setTimeout(() => {
-      if (currentUtterance) {
-        window.speechSynthesis.cancel();
-        currentUtterance = null;
-      }
-    }, 6000); // Pause after 10 seconds
+    // Voice feedback
+    const message = `${text} detected at ${position} and is ${distance}`;
+    const utterance = new SpeechSynthesisUtterance(message);
+    window.speechSynthesis.speak(utterance);
   });
 }
 
@@ -73,74 +63,59 @@ const videoConstraints = {
 function ObjDetection() {
   const webcamRef = useRef(null);
   const canvasRef = useRef(null);
-  const [currentData, setCurrentData] = useState({ text: '', position: '', distance: '' });
-  const [net, setNet] = useState(null);
 
-  useEffect(() => {
-    const loadModel = async () => {
-      const model = await cocossd.load();
-      setNet(model);
-      console.log("COCO-SSD model loaded.");
-    };
-    loadModel();
-  }, []);
+  // Main function
+  const runCoco = async () => {
+    const net = await cocossd.load();
+    console.log("Handpose model loaded.");
+    //  Loop and detect hands
+    setInterval(() => {
+      detect(net);
+    }, 10);
+  };
 
-  useEffect(() => {
-    if (net) {
-      const detect = async () => {
-        if (
-          typeof webcamRef.current !== "undefined" &&
-          webcamRef.current !== null &&
-          webcamRef.current.video.readyState === 4
-        ) {
-          const video = webcamRef.current.video;
-          const videoWidth = webcamRef.current.video.videoWidth;
-          const videoHeight = webcamRef.current.video.videoHeight;
+  const detect = async (net) => {
+    // Check data is available
+    if (
+      typeof webcamRef.current !== "undefined" &&
+      webcamRef.current !== null &&
+      webcamRef.current.video.readyState === 4
+    ) {
+      // Get Video Properties
+      const video = webcamRef.current.video;
+      const videoWidth = webcamRef.current.video.videoWidth;
+      const videoHeight = webcamRef.current.video.videoHeight;
 
-          webcamRef.current.video.width = videoWidth;
-          webcamRef.current.video.height = videoHeight;
+      // Set video width
+      webcamRef.current.video.width = videoWidth;
+      webcamRef.current.video.height = videoHeight;
 
-          canvasRef.current.width = videoWidth;
-          canvasRef.current.height = videoHeight;
+      // Set canvas height and width
+      canvasRef.current.width = videoWidth;
+      canvasRef.current.height = videoHeight;
 
-          const obj = await net.detect(video);
+      // Make Detections
+      const obj = await net.detect(video);
 
-          const ctx = canvasRef.current.getContext("2d");
-          drawRect(obj, ctx, setCurrentData);
-        }
-        requestAnimationFrame(detect);
-      };
-      detect();
+      // Draw mesh
+      const ctx = canvasRef.current.getContext("2d");
+      drawRect(obj, ctx); 
     }
-  }, [net]);
+  };
 
+  useEffect(()=>{runCoco()},[]);
   useEffect(() => {
-    console.log(currentData.text)
-    if (currentData.text) {
-      const { text, position, distance } = currentData;
-      const message = `${text} detected at ${position} and it is ${distance}`;
-      const utterance = new SpeechSynthesisUtterance(message);
-      window.speechSynthesis.speak(utterance);
-    }
-  }, [currentData]);
-
-  useEffect(() => {
-    const message = "Object Detection page";
-    const utterance = new SpeechSynthesisUtterance(message);
-    window.speechSynthesis.speak(utterance);
-
-    // Cleanup function to cancel speech synthesis on unmount
     return () => {
       window.speechSynthesis.cancel();
     };
-  }, []);
+  }, [])
 
   return (
-    <div className="App overflow-y-hidden h-full ">
-      <header className="App-header h-full">
+    <div  className="App h-full">
+      <header className="App-header relative h-full ">
         <Webcam
           ref={webcamRef}
-          muted={true}
+          muted={true} 
           style={{
             position: "absolute",
             marginLeft: "auto",
@@ -148,11 +123,11 @@ function ObjDetection() {
             left: 0,
             right: 0,
             textAlign: "center",
-            zIndex: 9,
-            width: "100%",
-            height: 330,
+            zIndex: 8,
+            width: 640,
+            height: 480,
           }}
-          videoConstraints={videoConstraints}
+          // videoConstraints={videoConstraints}
         />
 
         <canvas
@@ -164,9 +139,9 @@ function ObjDetection() {
             left: 0,
             right: 0,
             textAlign: "center",
-            zIndex: 10,
-            width: "100%",
-            height: 360,
+            zIndex: 9,
+            width: 640,
+            height: 480,
           }}
         />
       </header>
