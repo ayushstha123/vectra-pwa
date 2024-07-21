@@ -22,6 +22,7 @@ const VoiceAssist = () => {
             'object detection': '/objectdetection',
             'image caption': '/imgCaption',
             'location': '/location',
+            'chatbot': "/speechtotext"
           };
           if (routes[page.toLowerCase()]) {
             navigate(routes[page.toLowerCase()]);
